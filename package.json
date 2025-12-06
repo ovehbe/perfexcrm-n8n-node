@@ -1,5 +1,5 @@
 {
-	"name": "n8n-nodes-perfexcrm",
+	"name": "@ovehbe/n8n-nodes-perfexcrm",
 	"version": "0.1.0",
 	"description": "n8n node for Perfex CRM - Customers, Invoices, and Payments",
 	"keywords": [
@@ -11,23 +11,23 @@
 		"payments"
 	],
 	"license": "MIT",
-	"homepage": "",
+	"homepage": "https://github.com/ovehbe/perfexcrm-n8n-node",
 	"author": {
 		"name": "Ömer Vehbe",
 		"email": "ovehbe@gmail.com"
 	},
 	"repository": {
 		"type": "git",
-		"url": ""
+		"url": "https://github.com/ovehbe/perfexcrm-n8n-node.git"
 	},
 	"main": "index.js",
 	"scripts": {
 		"build": "tsc && gulp build:icons",
 		"dev": "tsc --watch",
 		"format": "prettier nodes credentials --write",
-		"lint": "eslint nodes credentials package.json",
-		"lintfix": "eslint nodes credentials package.json --fix",
-		"prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
+		"lint": "eslint nodes credentials",
+		"lintfix": "eslint nodes credentials --fix",
+		"prepublishOnly": "npm run build"
 	},
 	"files": [
 		"dist"
