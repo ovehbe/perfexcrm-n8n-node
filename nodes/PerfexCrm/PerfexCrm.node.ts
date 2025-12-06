@@ -11,6 +11,7 @@ import {
 	perfexCrmApiRequest,
 	perfexCrmApiRequestAllItems,
 	buildAddressData,
+	calculateInvoiceTotals,
 } from './GenericFunctions';
 
 export class PerfexCrm implements INodeType {
@@ -1443,13 +1444,21 @@ export class PerfexCrm implements INodeType {
 							}
 						}
 
-						// Don't send subtotal/total - let Perfex calculate based on items and taxes
+						// Calculate totals including tax
+						const discountPercent = (additionalFields.discount_percent as number) || 0;
+						const discountTotal = (additionalFields.discount_total as number) || 0;
+						const adjustment = (additionalFields.adjustment as number) || 0;
+						const { subtotal, total, totalTax } = calculateInvoiceTotals(invoiceItems, discountPercent, discountTotal, adjustment);
+
 						const body: IDataObject = {
 							clientid,
 							number: invoiceNumber,
 							date,
 							currency,
 							billing_street,
+							subtotal: subtotal.toFixed(2),
+							total: total.toFixed(2),
+							total_tax: totalTax.toFixed(2),
 						};
 
 						// Add other additional fields (except number and snFieldId which we handled)

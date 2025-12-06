@@ -152,32 +152,46 @@ export function buildInvoiceItems(
 }
 
 /**
- * Calculate invoice totals
+ * Calculate invoice totals including tax
  */
 export function calculateInvoiceTotals(
 	items: IDataObject[],
 	discountPercent: number = 0,
 	discountTotal: number = 0,
 	adjustment: number = 0,
-): { subtotal: number; total: number } {
+): { subtotal: number; total: number; totalTax: number } {
 	let subtotal = 0;
+	let totalTax = 0;
 	
 	items.forEach((item) => {
-		const qty = item.quantity as number;
-		const rate = item.rate as number;
-		subtotal += qty * rate;
+		const qty = (item.quantity as number) || 1;
+		const rate = (item.rate as number) || 0;
+		const itemSubtotal = qty * rate;
+		subtotal += itemSubtotal;
+		
+		// Parse tax from taxName (format: "TaxName|TaxRate", e.g., "KDV|20.00")
+		if (item.taxName) {
+			const taxStr = item.taxName as string;
+			const taxMatch = taxStr.match(/\|(\d+(?:\.\d+)?)/);
+			if (taxMatch) {
+				const taxRate = parseFloat(taxMatch[1]);
+				totalTax += itemSubtotal * (taxRate / 100);
+			}
+		}
 	});
 
-	let total = subtotal;
+	let total = subtotal + totalTax;
 	
+	// Apply discount
 	if (discountPercent > 0) {
 		total -= subtotal * (discountPercent / 100);
 	} else if (discountTotal > 0) {
 		total -= discountTotal;
 	}
 	
+	// Apply adjustment
 	total += adjustment;
 
-	return { subtotal, total };
+	return { subtotal, total, totalTax };
 }
 
