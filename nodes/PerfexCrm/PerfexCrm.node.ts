@@ -729,16 +729,31 @@ export class PerfexCrm implements INodeType {
 				description: 'Billing address street (required)',
 			},
 
-			// Invoice Create - Payment Modes
+			// Invoice Create - Set Payment Modes Toggle
 			{
-				displayName: 'Payment Modes',
-				name: 'allowed_payment_modes',
-				type: 'string',
-				required: true,
+				displayName: 'Set Payment Modes',
+				name: 'setPaymentModes',
+				type: 'boolean',
 				displayOptions: {
 					show: {
 						resource: ['invoice'],
 						operation: ['create'],
+					},
+				},
+				default: false,
+				description: 'Whether to set allowed payment modes for this invoice',
+			},
+
+			// Invoice Create - Payment Modes (conditional)
+			{
+				displayName: 'Payment Modes',
+				name: 'allowed_payment_modes',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['invoice'],
+						operation: ['create'],
+						setPaymentModes: [true],
 					},
 				},
 				default: '',
@@ -1383,7 +1398,7 @@ export class PerfexCrm implements INodeType {
 						const date = this.getNodeParameter('date', i) as string;
 						const currency = this.getNodeParameter('currency', i) as string;
 						const billing_street = this.getNodeParameter('billing_street', i) as string;
-						const paymentModesStr = this.getNodeParameter('allowed_payment_modes', i) as string;
+						const setPaymentModes = this.getNodeParameter('setPaymentModes', i) as boolean;
 						const itemsData = this.getNodeParameter('items', i) as IDataObject;
 						const additionalFields = this.getNodeParameter('invoiceAdditionalFields', i) as IDataObject;
 
@@ -1420,8 +1435,14 @@ export class PerfexCrm implements INodeType {
 						// Get S/N field ID
 						const snFieldId = (additionalFields.snFieldId as string) || '8';
 
-						// Parse payment modes
-						const paymentModes = paymentModesStr.split(',').map(m => m.trim());
+						// Parse payment modes only if enabled
+						let paymentModes: string[] = [];
+						if (setPaymentModes) {
+							const paymentModesStr = this.getNodeParameter('allowed_payment_modes', i) as string;
+							if (paymentModesStr) {
+								paymentModes = paymentModesStr.split(',').map(m => m.trim()).filter(m => m);
+							}
+						}
 
 						// Calculate totals
 						const discountPercent = (additionalFields.discount_percent as number) || 0;
@@ -1445,10 +1466,12 @@ export class PerfexCrm implements INodeType {
 						delete fieldsToAdd.snFieldId;
 						Object.assign(body, fieldsToAdd);
 
-						// Add payment modes
-						paymentModes.forEach((mode, index) => {
-							body[`allowed_payment_modes[${index}]`] = mode;
-						});
+						// Add payment modes only if set
+						if (paymentModes.length > 0) {
+							paymentModes.forEach((mode, index) => {
+								body[`allowed_payment_modes[${index}]`] = mode;
+							});
+						}
 
 						// Add items
 						invoiceItems.forEach((item, index) => {
