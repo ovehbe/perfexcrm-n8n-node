@@ -364,6 +364,59 @@ export class PerfexCrm implements INodeType {
 				],
 			},
 
+			// Customer Get Many Options
+			{
+				displayName: 'Options',
+				name: 'customerGetAllOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['customer'],
+						operation: ['getAll'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Limit',
+						name: 'limit',
+						type: 'number',
+						default: 50,
+						description: 'Max number of results to return',
+					},
+					{
+						displayName: 'Filter by Phone Number',
+						name: 'phonenumber',
+						type: 'string',
+						default: '',
+						description: 'Filter customers by phone number (partial match)',
+					},
+					{
+						displayName: 'Filter by VAT',
+						name: 'vat',
+						type: 'string',
+						default: '',
+						description: 'Filter customers by VAT number (partial match)',
+					},
+					{
+						displayName: 'Sort By',
+						name: 'sortBy',
+						type: 'options',
+						options: [
+							{ name: 'ID (Newest First)', value: 'id_desc' },
+							{ name: 'ID (Oldest First)', value: 'id_asc' },
+							{ name: 'Company Name (A-Z)', value: 'company_asc' },
+							{ name: 'Company Name (Z-A)', value: 'company_desc' },
+							{ name: 'Date Created (Newest First)', value: 'datecreated_desc' },
+							{ name: 'Date Created (Oldest First)', value: 'datecreated_asc' },
+						],
+						default: 'id_desc',
+						description: 'Sort order for results',
+					},
+				],
+			},
+
 			// Customer Update Fields
 			{
 				displayName: 'Update Fields',
@@ -1074,7 +1127,49 @@ export class PerfexCrm implements INodeType {
 					}
 
 					if (operation === 'getAll') {
-						responseData = await perfexCrmApiRequestAllItems.call(this, 'GET', '/customers');
+						const options = this.getNodeParameter('customerGetAllOptions', i) as IDataObject;
+						let allCustomers = await perfexCrmApiRequestAllItems.call(this, 'GET', '/customers') as IDataObject[];
+						
+						// Filter by phone number if provided
+						if (options.phonenumber) {
+							const phoneFilter = (options.phonenumber as string).toLowerCase();
+							allCustomers = allCustomers.filter(customer => 
+								customer.phonenumber && (customer.phonenumber as string).toLowerCase().includes(phoneFilter)
+							);
+						}
+						
+						// Filter by VAT if provided
+						if (options.vat) {
+							const vatFilter = (options.vat as string).toLowerCase();
+							allCustomers = allCustomers.filter(customer => 
+								customer.vat && (customer.vat as string).toLowerCase().includes(vatFilter)
+							);
+						}
+						
+						// Sort results
+						const sortBy = (options.sortBy as string) || 'id_desc';
+						allCustomers.sort((a, b) => {
+							switch (sortBy) {
+								case 'id_asc':
+									return parseInt(a.userid as string, 10) - parseInt(b.userid as string, 10);
+								case 'id_desc':
+									return parseInt(b.userid as string, 10) - parseInt(a.userid as string, 10);
+								case 'company_asc':
+									return (a.company as string || '').localeCompare(b.company as string || '');
+								case 'company_desc':
+									return (b.company as string || '').localeCompare(a.company as string || '');
+								case 'datecreated_asc':
+									return new Date(a.datecreated as string).getTime() - new Date(b.datecreated as string).getTime();
+								case 'datecreated_desc':
+									return new Date(b.datecreated as string).getTime() - new Date(a.datecreated as string).getTime();
+								default:
+									return parseInt(b.userid as string, 10) - parseInt(a.userid as string, 10);
+							}
+						});
+						
+						// Apply limit
+						const limit = (options.limit as number) || 50;
+						responseData = allCustomers.slice(0, limit);
 					}
 
 					if (operation === 'search') {
