@@ -1,7 +1,7 @@
 import {
 	IExecuteFunctions,
 	IHttpRequestMethods,
-	IRequestOptions,
+	IHttpRequestOptions,
 	IDataObject,
 	NodeApiError,
 	JsonObject,
@@ -9,6 +9,7 @@ import {
 
 /**
  * Make an API request to Perfex CRM
+ * Uses httpRequest for proper connection handling
  */
 export async function perfexCrmApiRequest(
 	this: IExecuteFunctions,
@@ -19,28 +20,30 @@ export async function perfexCrmApiRequest(
 ): Promise<IDataObject | IDataObject[]> {
 	const credentials = await this.getCredentials('perfexCrmApi');
 	
-	const options: IRequestOptions = {
+	const options: IHttpRequestOptions = {
 		method,
-		uri: `${credentials.baseUrl}/api${endpoint}`,
+		url: `${credentials.baseUrl}/api${endpoint}`,
 		headers: {
-			authtoken: credentials.apiToken as string,
+			'authtoken': credentials.apiToken as string,
 		},
 		qs,
-		json: true,
 	};
 
 	if (Object.keys(body).length > 0) {
 		if (method === 'POST') {
-			// POST uses form data
-			options.form = body;
+			// POST uses form data (application/x-www-form-urlencoded)
+			options.headers!['Content-Type'] = 'application/x-www-form-urlencoded';
+			options.body = body;
 		} else if (method === 'PUT') {
 			// PUT uses JSON body
+			options.headers!['Content-Type'] = 'application/json';
 			options.body = body;
+			options.json = true;
 		}
 	}
 
 	try {
-		const response = await this.helpers.request(options);
+		const response = await this.helpers.httpRequest(options);
 		
 		// Check if response indicates an error
 		if (response && response.status === false) {
