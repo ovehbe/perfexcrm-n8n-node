@@ -958,6 +958,39 @@ export class PerfexCrm implements INodeType {
 						default: '8',
 						description: 'The ID of the S/N custom field for items',
 					},
+					{
+						displayName: 'Custom Fields',
+						name: 'customFields',
+						type: 'fixedCollection',
+						typeOptions: {
+							multipleValues: true,
+						},
+						default: {},
+						description: 'Add invoice-level custom fields (e.g., İlk Temsilci, Arif\'in Notu, Arif Platform)',
+						options: [
+							{
+								name: 'customFieldValues',
+								displayName: 'Custom Field',
+								values: [
+									{
+										displayName: 'Field ID',
+										name: 'fieldId',
+										type: 'string',
+										default: '',
+										description: 'The custom field ID (e.g., 9, 10, 11)',
+										required: true,
+									},
+									{
+										displayName: 'Value',
+										name: 'value',
+										type: 'string',
+										default: '',
+										description: 'The value for this custom field',
+									},
+								],
+							},
+						],
+					},
 				],
 			},
 
@@ -1492,6 +1525,19 @@ export class PerfexCrm implements INodeType {
 								body[`newitems[${index}][custom_fields][items][${snFieldId}]`] = item.serialNumber as string;
 							}
 						});
+
+						// Add invoice-level custom fields
+						const customFieldsData = additionalFields.customFields as IDataObject | undefined;
+						if (customFieldsData && customFieldsData.customFieldValues) {
+							const customFields = customFieldsData.customFieldValues as IDataObject[];
+							customFields.forEach((field) => {
+								const fieldId = field.fieldId as string;
+								const value = field.value as string;
+								if (fieldId) {
+									body[`custom_fields[invoice][${fieldId}]`] = value || '';
+								}
+							});
+						}
 
 						const createResponse = await perfexCrmApiRequest.call(this, 'POST', '/invoices', body);
 						
