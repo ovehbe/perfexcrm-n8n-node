@@ -1494,10 +1494,11 @@ export class PerfexCrm implements INodeType {
 							total_tax: totalTax.toFixed(2),
 						};
 
-						// Add other additional fields (except number and snFieldId which we handled)
+						// Add other additional fields (except number, snFieldId, and customFields which we handle separately)
 						const fieldsToAdd = { ...additionalFields };
 						delete fieldsToAdd.number;
 						delete fieldsToAdd.snFieldId;
+						delete fieldsToAdd.customFields;
 						Object.assign(body, fieldsToAdd);
 
 						// Add payment modes only if set
