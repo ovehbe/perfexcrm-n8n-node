@@ -602,6 +602,47 @@ export class PerfexCrm implements INodeType {
 				description: 'Search query to find invoices (invoice number, customer name, etc.)',
 			},
 
+			// Invoice Search Options
+			{
+				displayName: 'Options',
+				name: 'invoiceSearchOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['invoice'],
+						operation: ['search'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Limit',
+						name: 'limit',
+						type: 'number',
+						default: 50,
+						description: 'Max number of results to return',
+					},
+					{
+						displayName: 'Sort By',
+						name: 'sortBy',
+						type: 'options',
+						options: [
+							{ name: 'ID (Newest First)', value: 'id_desc' },
+							{ name: 'ID (Oldest First)', value: 'id_asc' },
+							{ name: 'Date (Newest First)', value: 'date_desc' },
+							{ name: 'Date (Oldest First)', value: 'date_asc' },
+							{ name: 'Number (Highest First)', value: 'number_desc' },
+							{ name: 'Number (Lowest First)', value: 'number_asc' },
+							{ name: 'Total (Highest First)', value: 'total_desc' },
+							{ name: 'Total (Lowest First)', value: 'total_asc' },
+						],
+						default: 'id_desc',
+						description: 'Sort order for results',
+					},
+				],
+			},
+
 			// Invoice Get Many Options
 			{
 				displayName: 'Options',
@@ -1066,6 +1107,59 @@ export class PerfexCrm implements INodeType {
 				description: 'Search query to find payments',
 			},
 
+			// Payment Get Many Options
+			{
+				displayName: 'Options',
+				name: 'paymentGetAllOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['payment'],
+						operation: ['getAll'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Limit',
+						name: 'limit',
+						type: 'number',
+						default: 50,
+						description: 'Max number of results to return',
+					},
+					{
+						displayName: 'Search Query',
+						name: 'query',
+						type: 'string',
+						default: '',
+						description: 'Filter payments by search query (payment ID, transaction ID, etc.)',
+					},
+					{
+						displayName: 'Filter by Invoice ID',
+						name: 'invoiceid',
+						type: 'string',
+						default: '',
+						description: 'Filter payments by invoice ID',
+					},
+					{
+						displayName: 'Sort By',
+						name: 'sortBy',
+						type: 'options',
+						options: [
+							{ name: 'ID (Newest First)', value: 'id_desc' },
+							{ name: 'ID (Oldest First)', value: 'id_asc' },
+							{ name: 'Date (Newest First)', value: 'date_desc' },
+							{ name: 'Date (Oldest First)', value: 'date_asc' },
+							{ name: 'Amount (Highest First)', value: 'amount_desc' },
+							{ name: 'Amount (Lowest First)', value: 'amount_asc' },
+						],
+						default: 'id_desc',
+						description: 'Sort order for results',
+					},
+				],
+			},
+
 			// Payment Create - Invoice ID
 			{
 				displayName: 'Invoice ID',
@@ -1419,11 +1513,42 @@ export class PerfexCrm implements INodeType {
 
 					if (operation === 'search') {
 						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-						responseData = await perfexCrmApiRequestAllItems.call(
+						const options = this.getNodeParameter('invoiceSearchOptions', i) as IDataObject;
+						
+						let searchResults = await perfexCrmApiRequestAllItems.call(
 							this,
 							'GET',
 							`/invoices/search/${encodeURIComponent(searchQuery)}`,
-						);
+						) as IDataObject[];
+						
+						// Sort results
+						const sortBy = (options.sortBy as string) || 'id_desc';
+						searchResults.sort((a, b) => {
+							switch (sortBy) {
+								case 'id_asc':
+									return (a.id as number) - (b.id as number);
+								case 'id_desc':
+									return (b.id as number) - (a.id as number);
+								case 'date_asc':
+									return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
+								case 'date_desc':
+									return new Date(b.date as string).getTime() - new Date(a.date as string).getTime();
+								case 'number_asc':
+									return parseInt(a.number as string, 10) - parseInt(b.number as string, 10);
+								case 'number_desc':
+									return parseInt(b.number as string, 10) - parseInt(a.number as string, 10);
+								case 'total_asc':
+									return parseFloat(a.total as string) - parseFloat(b.total as string);
+								case 'total_desc':
+									return parseFloat(b.total as string) - parseFloat(a.total as string);
+								default:
+									return (b.id as number) - (a.id as number);
+							}
+						});
+						
+						// Apply limit
+						const limit = (options.limit as number) || 50;
+						responseData = searchResults.slice(0, limit);
 					}
 
 					if (operation === 'create') {
@@ -1579,7 +1704,54 @@ export class PerfexCrm implements INodeType {
 					}
 
 					if (operation === 'getAll') {
-						responseData = await perfexCrmApiRequestAllItems.call(this, 'GET', '/payments');
+						const options = this.getNodeParameter('paymentGetAllOptions', i) as IDataObject;
+						let allPayments = await perfexCrmApiRequestAllItems.call(this, 'GET', '/payments') as IDataObject[];
+						
+						// Filter by invoice ID if provided
+						if (options.invoiceid) {
+							allPayments = allPayments.filter(payment => 
+								String(payment.invoiceid) === options.invoiceid || 
+								payment.invoiceid === parseInt(options.invoiceid as string, 10)
+							);
+						}
+						
+						// Filter by query if provided (search in ID, transaction ID, note)
+						if (options.query) {
+							const query = (options.query as string).toLowerCase();
+							allPayments = allPayments.filter(payment => {
+								const paymentId = String(payment.id || '').toLowerCase();
+								const transactionId = String(payment.transactionid || '').toLowerCase();
+								const note = String(payment.note || '').toLowerCase();
+								return paymentId.includes(query) || 
+									transactionId.includes(query) || 
+									note.includes(query);
+							});
+						}
+						
+						// Sort results
+						const sortBy = (options.sortBy as string) || 'id_desc';
+						allPayments.sort((a, b) => {
+							switch (sortBy) {
+								case 'id_asc':
+									return (a.id as number) - (b.id as number);
+								case 'id_desc':
+									return (b.id as number) - (a.id as number);
+								case 'date_asc':
+									return new Date(a.date as string).getTime() - new Date(b.date as string).getTime();
+								case 'date_desc':
+									return new Date(b.date as string).getTime() - new Date(a.date as string).getTime();
+								case 'amount_asc':
+									return parseFloat(a.amount as string) - parseFloat(b.amount as string);
+								case 'amount_desc':
+									return parseFloat(b.amount as string) - parseFloat(a.amount as string);
+								default:
+									return (b.id as number) - (a.id as number);
+							}
+						});
+						
+						// Apply limit
+						const limit = (options.limit as number) || 50;
+						responseData = allPayments.slice(0, limit);
 					}
 
 					if (operation === 'search') {

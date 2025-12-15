@@ -64,7 +64,7 @@ When creating a customer, you can:
 | **Create** | Create a new invoice with items, taxes, discounts, and custom fields | `invoiceId`, `invoiceNumber`, `clientid`, `status`, `message` |
 | **Get** | Get an invoice by ID | Invoice details |
 | **Get Many** | Get all invoices with filters (limit, sort, customer ID, status) | Invoice list |
-| **Search** | Search invoices by number, customer name, etc. | Matching invoices |
+| **Search** | Search invoices by number, customer name, etc. with limit/sort options | Matching invoices |
 | **Get URL** | Get the customer-facing invoice URL | `invoiceId`, `invoiceNumber`, `hash`, `invoiceUrl` |
 | **Get Admin URLs** | Get admin panel and PDF URLs | `invoiceId`, `invoiceNumber`, `adminUrl`, `pdfViewUrl`, `pdfDownloadUrl` |
 
@@ -74,6 +74,11 @@ When creating a customer, you can:
 - **Sort By**: Sort by ID, Date, or Invoice Number (ascending/descending)
 - **Customer ID**: Filter by customer
 - **Status**: Filter by invoice status (Draft, Sent, Unpaid, Partially Paid, Paid, etc.)
+
+#### Search Options
+
+- **Limit**: Number of results to return (default: 50)
+- **Sort By**: Sort by ID, Date, Invoice Number, or Total (ascending/descending)
 
 #### Invoice Items
 
@@ -98,8 +103,15 @@ The S/N (Serial Number) is a custom field on invoice items. The default custom f
 |-----------|-------------|--------|
 | **Create** | Record a new payment for an invoice | `paymentId`, `status`, `message` |
 | **Get** | Get a payment by ID | Payment details |
-| **Get Many** | Get all payments with optional filters | Payment list |
+| **Get Many** | Get all payments with limit, sort, query, and invoice ID filter | Payment list |
 | **Search** | Search payments | Matching payments |
+
+#### Get Many Options
+
+- **Limit**: Number of results to return (default: 50)
+- **Sort By**: Sort by ID, Date, or Amount (ascending/descending)
+- **Search Query**: Filter by payment ID, transaction ID, or note
+- **Invoice ID**: Filter payments by specific invoice
 
 ## URL Outputs
 
